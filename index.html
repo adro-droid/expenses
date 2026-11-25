@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Project Expenses</title><meta name="theme-color" content="#000000"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="Expenses"><link rel="manifest" href="manifest.json"><link rel="apple-touch-icon" href="apple-touch-icon.png"><link rel="icon" href="icon-192.png"><style id="css">
+/* VOICE: calm, native, quick — an expense ledger that behaves like iOS Reminders
+   IDEA: each project is a Reminders list; payment methods are its columns; a tick = recorded in the books
+   PICTURE: the working board itself — columns of entry cards, with the unrecorded total up top
+   COLOUR and TYPE: system greys, each project's own colour on its title and icon; system font, 4 sizes
+   LAYOUT: large title, smart tiles, project list; project view scrolls sideways column by column */
+:root{color-scheme:light dark;--bg:light-dark(#f2f2f7,#000);--card:light-dark(#fff,#1c1c1e);--card2:light-dark(#e9e9ee,#2c2c2e);--ink:light-dark(#000,#fff);--sub:#8e8e93;--line:light-dark(#dcdce1,#38383a);--acc:light-dark(#007aff,#0a84ff);--red:light-dark(#ff3b30,#ff453a)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.35 -apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Inter,sans-serif;overflow-x:clip;-webkit-tap-highlight-color:transparent}
+button{font:inherit;color:inherit}
+#root{max-width:1240px;margin:0 auto;padding:max(10px,env(safe-area-inset-top)) max(4vw,16px) 120px}
+.top{display:flex;justify-content:space-between;align-items:center;min-height:52px}
+.pill{display:flex;background:var(--card);border-radius:24px;padding:2px 4px}
+.ib{width:44px;height:44px;border:0;background:none;display:grid;place-items:center;border-radius:22px;cursor:pointer}
+.back{background:var(--card)}
+.big{font-size:34px;line-height:1.1;font-weight:700;margin:6px 0 12px;text-wrap:balance}
+.search{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:11px;padding:0 10px;height:42px;color:var(--sub)}
+.search input{flex:1;border:0;background:none;font-size:17px;color:var(--ink);outline:none}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+@media(min-width:700px){.tiles{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.tile{background:var(--card);border:0;border-radius:14px;padding:12px;text-align:left;display:grid;grid-template-columns:auto 1fr;grid-template-areas:"i n" "l l" "s s";align-items:center;cursor:pointer}
+.ti{grid-area:i;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;color:#fff}
+.tile b{grid-area:n;justify-self:end;font-size:28px}
+.tile .tl{grid-area:l;color:var(--sub);font-weight:600;margin-top:4px}
+.tile small{grid-area:s;font-size:13px;color:var(--sub);white-space:nowrap}
+.sec{font-size:22px;font-weight:700;margin:24px 0 8px}
+.group{background:var(--card);border-radius:12px;overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;padding:10px 14px;min-height:56px;text-align:left;cursor:pointer;position:relative}
+.row+.row::before{content:"";position:absolute;top:0;left:60px;right:0;border-top:1px solid var(--line)}
+.dot{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;flex:none}
+.nm{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta{display:flex;align-items:center;gap:8px;color:var(--sub)}
+.meta small{font-size:14px;white-space:nowrap}
+.addlist{color:var(--acc);background:none;border:0;font-weight:600;display:flex;gap:6px;align-items:center;padding:14px 2px;cursor:pointer;min-height:44px}
+.note{color:var(--sub);font-size:13px;margin-top:20px}
+.empty{color:var(--sub);padding:16px;margin:0}
+.sum{color:var(--sub);margin:-4px 0 10px}.sum b{color:var(--ink);font-size:20px}
+.colnav{display:flex;gap:6px;overflow-x:auto;margin:0 0 12px;padding-bottom:2px}
+.colnav button{flex:none;border:0;background:var(--card);border-radius:16px;padding:6px 12px;font-size:15px;cursor:pointer;min-height:34px;white-space:nowrap}
+.colnav button.on{background:var(--pc);color:#fff}
+.board{display:flex;gap:14px;overflow-x:auto;scroll-snap-type:x mandatory;padding-bottom:12px;align-items:flex-start}
+.col{flex:0 0 min(84%,300px);scroll-snap-align:start;display:flex;flex-direction:column;gap:8px}
+.ch{display:flex;justify-content:space-between;align-items:baseline;gap:8px;padding:2px 4px}
+.ch h3{margin:0;font-size:22px}.ch span{color:var(--sub);font-size:14px;white-space:nowrap}
+.card{background:var(--card);border-radius:12px;display:flex;gap:10px;padding:12px;align-items:flex-start;transition:opacity .4s}
+.chk{width:24px;height:24px;border-radius:50%;border:2px solid var(--sub);background:none;flex:none;cursor:pointer;padding:0;margin-top:1px;position:relative}
+.chk::after{content:"";position:absolute;inset:-10px}
+.done .chk{border-color:var(--pc,var(--acc));background:radial-gradient(circle,var(--pc,var(--acc)) 0 6px,transparent 7px)}
+.done .ds,.done .am{color:var(--sub)}
+.cb{flex:1;cursor:pointer}
+.l1{display:flex;gap:8px;justify-content:space-between}
+.ds{overflow-wrap:anywhere}.am{font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.l2{font-size:14px;color:var(--sub);margin-top:2px;overflow-wrap:anywhere}
+.add{background:var(--card);border-radius:12px;display:flex;gap:10px;align-items:center;padding:0 12px;min-height:48px;margin:0}
+.ring{width:24px;height:24px;border-radius:50%;border:2px dotted var(--sub);flex:none}
+.add input{flex:1;border:0;background:none;font-size:16px;color:var(--ink);outline:none;min-height:46px}
+.gh{display:flex;align-items:center;gap:8px;font-size:18px;margin:18px 0 8px}.gh i{width:12px;height:12px;border-radius:50%}.gh span{margin-left:auto;color:var(--sub);font-size:14px;font-weight:400}
+.stack{display:grid;gap:8px}
+.fab{position:fixed;right:max(20px,calc(50vw - 600px));bottom:calc(24px + env(safe-area-inset-bottom));width:60px;height:60px;border-radius:50%;border:0;color:#fff;display:grid;place-items:center;box-shadow:0 6px 18px rgba(0,0,0,.3);cursor:pointer}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center;z-index:10}
+.sheet{background:var(--bg);width:min(560px,100%);max-height:92vh;overflow:auto;border-radius:14px 14px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom));animation:up .25s ease-out}
+@keyframes up{from{transform:translateY(40px);opacity:0}}
+@media(min-width:700px){.ov{align-items:center}.sheet{border-radius:14px}}
+.sh-h{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:6px 10px;position:sticky;top:0;background:var(--bg);z-index:1}
+.sh-h>:last-child{justify-self:end}
+.lnk{background:none;border:0;color:var(--acc);cursor:pointer;min-height:44px;padding:0 6px}.strong{font-weight:600}
+.form{padding:4px 16px 8px;display:grid;gap:16px}
+.grp{background:var(--card);border-radius:12px;overflow:hidden}
+.grp>input,.grp>textarea{display:block;width:100%;border:0;border-bottom:1px solid var(--line);background:none;color:var(--ink);font:inherit;padding:12px 14px;outline:none}
+.grp>textarea{min-height:72px;resize:vertical}
+.grp>:last-child{border-bottom:0}
+.fl{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;min-height:50px;border-bottom:1px solid var(--line);gap:12px}
+.fl select,.fl input[type=date]{font:inherit;font-size:16px;color:var(--acc);background:var(--card2);border:0;border-radius:8px;padding:6px 8px;max-width:60%}
+.sw{appearance:none;width:51px;height:31px;border-radius:16px;background:var(--card2);position:relative;cursor:pointer;flex:none;margin:0;transition:background .2s}
+.sw::after{content:"";position:absolute;top:2px;left:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 2px 4px rgba(0,0,0,.25);transition:transform .2s}
+.sw:checked{background:#34c759}.sw:checked::after{transform:translateX(20px)}
+.btn{border:0;border-radius:12px;min-height:50px;font-weight:600;cursor:pointer;width:100%;background:var(--card);color:var(--acc)}
+.primary{background:var(--acc);color:#fff}.danger{color:var(--red)}
+.pname{display:grid;justify-items:center;gap:12px;padding:18px}
+.pname .dot{width:64px;height:64px}
+.pname input{width:100%;text-align:center;font:inherit;font-size:20px;font-weight:700;background:var(--card2);border:0;border-radius:10px;padding:10px;outline:none}
+.swatches{display:flex;flex-wrap:wrap;gap:14px;padding:16px}
+.swc{width:36px;height:36px;border-radius:50%;border:0;cursor:pointer}.swc.on{outline:3px solid var(--sub);outline-offset:3px}
+.rep h4{display:flex;align-items:center;gap:8px;margin:14px 0 4px}.rep h4 i{width:10px;height:10px;border-radius:50%}.rep h4 span{margin-left:auto;font-variant-numeric:tabular-nums}
+.rc{display:grid;grid-template-columns:1fr auto 7.5em;gap:12px;padding:4px 0 4px 18px;font-size:15px;color:var(--sub)}.rc span:not(:first-child){text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.repsum{margin:0;font-size:15px;color:var(--sub)}.repsum b{color:var(--ink);font-size:24px;display:block}
+.hint{color:var(--sub);font-size:14px;margin:0;min-height:1em}
+.l2 svg{vertical-align:-3px;margin-left:2px}
+.fl input[type=time]{font:inherit;font-size:16px;color:var(--acc);background:var(--card2);border:0;border-radius:8px;padding:6px 8px}
+.rcpt{padding:12px 14px;display:flex;gap:14px;align-items:center;min-height:60px}
+.rcadd{color:var(--acc);cursor:pointer;display:flex;align-items:center;gap:10px;font-weight:600;flex:1;min-height:44px}
+.thumb{width:76px;height:96px;border-radius:8px;overflow:hidden;border:0;padding:0;flex:none;background:var(--card2);cursor:zoom-in}.thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.rcb{display:grid;gap:2px;justify-items:start}.rcb .lnk{cursor:pointer;display:flex;align-items:center}.lnk.danger{color:var(--red)}
+.rcst{color:var(--sub);font-size:14px}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:grid;place-items:center;padding:16px;cursor:zoom-out}.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);background:var(--card2);border-radius:10px;padding:2px;gap:2px}.seg button{border:0;background:none;border-radius:8px;min-height:40px;font-size:15px;font-weight:600;cursor:pointer;padding:4px 6px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.chkline{display:flex;justify-content:space-between;align-items:center;padding:6px 14px;min-height:50px;gap:12px}
+#toast{position:fixed;left:50%;bottom:100px;transform:translateX(-50%);background:#2c2c2e;color:#fff;border-radius:12px;padding:6px 8px 6px 16px;display:none;align-items:center;gap:10px;z-index:20;max-width:92vw;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+#toast .lnk{color:#64d2ff;font-weight:600}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+@media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style></head><body><div id="root"></div><div id="toast" role="status"></div><script src="jspdf.umd.min.js"></script><script src="jspdf.plugin.autotable.min.js"></script><script type="application/json" id="state">{"v":1,"rev":1795578311537,"projects":[{"id":"cashadv","name":"Cash Advances","color":"#c4a079"},{"id":"rosslance","name":"Rosslance Expenses","color":"#8e8e93"},{"id":"antipolo","name":"Antipolo","color":"#f5c400"},{"id":"tagaytay","name":"Tagaytay","color":"#64b5f6"},{"id":"valwh","name":"Valenzuela Warehouse","color":"#e8a49c"},{"id":"mict","name":"MICT Housing","color":"#c4a079"},{"id":"saog","name":"Saog","color":"#64b5f6"},{"id":"cabaluay","name":"Cabaluay project","color":"#64b5f6"},{"id":"gbreeze","name":"Gentle Breeze","color":"#64b5f6"},{"id":"casasikat","name":"Casa Sikat","color":"#f5c400"},{"id":"cashwallet","name":"Cash Wallet","color":"#0a84ff"}],"entries":[{"id":"e1","pid":"cashadv","col":"gcash","desc":"AR Cake","amt":2500,"date":"2026-11-24","time":"10:00","notes":"","done":false,"doneAt":null,"img":null},{"id":"471jr3w5","pid":"cashadv","col":"cash","desc":"Jansen Diesel","amt":500,"date":"2026-11-25","time":"11:43","notes":"","done":false,"doneAt":null,"img":null}]}</script><script id="app">
+{
+const COLS=[['cash','Cash'],['gcash','Gcash'],['gotyme','GoTyme'],['bank','Bank'],['cc','Credit Card'],['others','Others']];
+const COLN=Object.fromEntries(COLS);
+const PAL=['#c4a079','#ff9500','#f5c400','#34c759','#30b0c7','#64b5f6','#0a84ff','#5e5ce6','#af52de','#ff2d55','#e8a49c','#8e8e93'];
+const MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const $=s=>document.querySelector(s), root=$('#root');
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const num=n=>(+n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const peso=n=>'₱'+num(n);
+const pad=n=>String(n).padStart(2,'0');
+const ymd=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>ymd(new Date());
+const uid=()=>Math.random().toString(36).slice(2,10);
+const sum=l=>l.reduce((a,e)=>a+(+e.amt||0),0);
+const parseAmt=v=>parseFloat(String(v).replace(/[^\d.]/g,''))||0;
+const nowHM=()=>{const d=new Date();return pad(d.getHours())+':'+pad(d.getMinutes())};
+const ftime=t=>{if(!t)return '';let[h,m]=t.split(':').map(Number);const ap=h<12?'AM':'PM';return (h%12||12)+':'+pad(m)+' '+ap};
+const fullDate=s=>{if(!s)return '';const[Y,M,D]=s.split('-').map(Number);return MON[M-1]+' '+D+', '+Y};
+function fdate(s){if(!s)return '';if(s===today())return 'Today';const y=new Date();y.setDate(y.getDate()-1);if(s===ymd(y))return 'Yesterday';const[Y,M,D]=s.split('-').map(Number);return MON[M-1]+' '+D+(Y!==new Date().getFullYear()?', '+Y:'')}
+const sv=(d,w=22)=>`<svg width="${w}" height="${w}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const IC={print:sv('<path d="M6 9V3h12v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M6 14h12v7H6z"/>'),more:sv('<circle cx="5" cy="12" r="1.2" fill="currentColor"/><circle cx="12" cy="12" r="1.2" fill="currentColor"/><circle cx="19" cy="12" r="1.2" fill="currentColor"/>'),search:sv('<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/>',18),back:sv('<path d="m15 5-7 7 7 7"/>'),chev:sv('<path d="m9 5 7 7-7 7"/>',16),plus:sv('<path d="M12 5v14M5 12h14"/>',26),list:sv('<path d="M9 7h11M9 12h11M9 17h11M4.5 7h.01M4.5 12h.01M4.5 17h.01"/>',18),unrec:sv('<circle cx="12" cy="12" r="8"/>',18),today:sv('<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',18),done:sv('<path d="m5 12 5 5 9-10"/>',18),all:sv('<path d="M4 13l2-8h12l2 8v6H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>',18),clip:sv('<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',15),cam:sv('<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',22)};
+
+let S;
+try{S=JSON.parse($('#state').textContent)}catch(e){S={v:1,rev:0,projects:[],entries:[]}}
+let ui={showDone:false};try{Object.assign(ui,JSON.parse(localStorage.getItem('pe-ui')||'{}'))}catch(e){}
+const saveUi=()=>{try{localStorage.setItem('pe-ui',JSON.stringify({showDone:ui.showDone}))}catch(e){}};
+let q='',cur=null,sheetOpen=false,storeOK=true,persisted=false;
+const proj=id=>S.projects.find(p=>p.id===id);
+const ofP=pid=>S.entries.filter(e=>e.pid===pid);
+const byDate=(a,b)=>(a.done-b.done)||(String(a.date)+' '+(a.time||'')).localeCompare(String(b.date)+' '+(b.time||''));
+const when=e=>fdate(e.date)+(e.time?', '+ftime(e.time):'');
+
+/* ---------- storage: everything lives in this phone's browser storage (IndexedDB) ---------- */
+const DB=new Promise((res,rej)=>{try{const r=indexedDB.open('project-expenses',1);r.onupgradeneeded=()=>{const d=r.result;d.createObjectStore('kv');d.createObjectStore('photos')};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)}catch(e){rej(e)}});DB.catch(()=>{});
+async function tx(st,mode,fn){const d=await DB;return new Promise((res,rej)=>{const t=d.transaction(st,mode),q=fn(t.objectStore(st));t.oncomplete=()=>res(q&&q.result);t.onerror=t.onabort=()=>rej(t.error)})}
+const idbGet=(st,k)=>tx(st,'readonly',s=>s.get(k)),idbPut=(st,k,v)=>tx(st,'readwrite',s=>s.put(v,k)),idbDel=(st,k)=>tx(st,'readwrite',s=>s.delete(k)),idbKeys=st=>tx(st,'readonly',s=>s.getAllKeys());
+let saveT=0;
+function save(){S.rev=Date.now();clearTimeout(saveT);saveT=setTimeout(persist,200)}
+function schedule(){}
+async function persist(){clearTimeout(saveT);try{await idbPut('kv','state',JSON.parse(JSON.stringify(S)));storeOK=true}catch(e){storeOK=false;try{localStorage.setItem('pe-state',JSON.stringify(S))}catch(x){}}note()}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')persist()});
+addEventListener('pagehide',()=>persist());
+async function load(){try{const v=await idbGet('kv','state');if(v&&Array.isArray(v.entries)){S=v;return}}catch(e){storeOK=false}
+ try{const L=JSON.parse(localStorage.getItem('pe-state')||'null');if(L&&Array.isArray(L.entries)){S=L;return}}catch(e){}
+ await persist()}
+function note(){const n=$('#note');if(!n)return;n.textContent=storeOK?'Saved on this phone. Works offline. Make a backup from ⋯ now and then.':'Could not save to this phone’s storage. Make a backup from ⋯.'}
+const urls={};
+async function photoUrl(id){if(!id)return '';if(String(id).startsWith('data:'))return id;if(urls[id])return urls[id];try{const b=await idbGet('photos',id);if(b)return urls[id]=URL.createObjectURL(b)}catch(e){}return ''}
+async function hydrate(el){for(const im of el.querySelectorAll('img[data-ph]')){const u=await photoUrl(im.dataset.ph);if(u)im.src=u;else im.alt='Photo missing'}}
+const dataToBlob=async d=>(await fetch(d)).blob();
+
+/* ---------- views ---------- */
+function card(e,ctx){const p=proj(e.pid);const bits=[when(e)];if(ctx)bits.push((ctx==='search'&&p?p.name+' · ':'')+COLN[e.col]);if(e.notes)bits.push(e.notes);
+ return `<div class="card${e.done?' done':''}" style="--pc:${p?p.color:''}"><button class="chk" data-chk="${e.id}" aria-label="${e.done?'Mark as unrecorded':'Mark as recorded'}"></button><div class="cb" data-open="${e.id}"><div class="l1"><span class="ds">${esc(e.desc||'Untitled')}</span><span class="am">${peso(e.amt)}</span></div><div class="l2">${esc(bits.filter(Boolean).join(' · '))}${e.img?' '+IC.clip:''}</div></div></div>`}
+function homeBody(){
+ if(q){const t=q.toLowerCase();const r=S.entries.filter(e=>[e.desc,e.notes,COLN[e.col],(proj(e.pid)||{}).name].join(' ').toLowerCase().includes(t)).sort(byDate);
+  return `<h2 class="sec">${r.length} result${r.length===1?'':'s'} · ${peso(sum(r))}</h2><div class="stack">${r.map(e=>card(e,'search')).join('')||'<p class="empty">No entries match.</p>'}</div>`}
+ const un=S.entries.filter(e=>!e.done);
+ const tiles=[['unrec','Unrecorded',un,'#ff9500'],['today','Today',S.entries.filter(e=>e.date===today()),'#0a84ff'],['done','Recorded',S.entries.filter(e=>e.done),'#34c759'],['all','All',S.entries,'#636366']];
+ return `<div class="tiles">${tiles.map(([k,n,l,c])=>`<button class="tile" data-go="s-${k}"><span class="ti" style="background:${c}">${IC[k]}</span><b>${l.length}</b><span class="tl">${n}</span><small>${peso(sum(l))}</small></button>`).join('')}</div>
+ <h2 class="sec">My Projects</h2><div class="group">${S.projects.map(p=>{const u=ofP(p.id).filter(e=>!e.done);return `<button class="row" data-go="p-${p.id}"><span class="dot" style="background:${p.color}">${IC.list}</span><span class="nm">${esc(p.name)}</span><span class="meta">${u.length?`<small>${peso(sum(u))}</small>`:''}<b>${u.length}</b>${IC.chev}</span></button>`}).join('')||'<p class="empty">No projects yet.</p>'}</div>
+ <button class="addlist" id="bAddP">${IC.plus} Add Project</button>`}
+function renderHome(){cur=null;
+ root.innerHTML=`<header class="top"><span></span><div class="pill"><button class="ib" id="bPrint" aria-label="Print">${IC.print}</button><button class="ib" id="bMenu" aria-label="More">${IC.more}</button></div></header>
+ <h1 class="big">Project Expenses</h1><label class="search">${IC.search}<input id="q" type="search" placeholder="Search entries" value="${esc(q)}" autocomplete="off"></label>
+ <div id="hb">${homeBody()}</div><p class="note" id="note"></p>`;note()}
+function renderSmart(k){cur=null;
+ const f={unrec:e=>!e.done,today:e=>e.date===today(),done:e=>e.done,all:()=>true}[k]||(()=>true);
+ const name={unrec:'Unrecorded',today:'Today',done:'Recorded',all:'All'}[k]||'All';
+ const l=S.entries.filter(f);
+ const groups=S.projects.map(p=>({p,es:l.filter(e=>e.pid===p.id).sort(byDate)})).filter(g=>g.es.length);
+ root.innerHTML=`<header class="top"><button class="ib back" data-go="home" aria-label="Back">${IC.back}</button>${k==='unrec'||k==='all'?`<div class="pill"><button class="ib" id="${k==='all'?'bPrintAll':'bPrint'}" aria-label="Print">${IC.print}</button></div>`:''}</header>
+ <h1 class="big">${name}</h1><p class="sum"><b>${peso(sum(l))}</b> · ${l.length} ${l.length===1?'entry':'entries'}</p>
+ ${groups.map(g=>`<h3 class="gh" style="color:${g.p.color}"><i style="background:${g.p.color}"></i>${esc(g.p.name)}<span>${peso(sum(g.es))}</span></h3><div class="stack">${g.es.map(e=>card(e,'smart')).join('')}</div>`).join('')||'<p class="empty">Nothing here.</p>'}`}
+function renderProject(p){cur=p;
+ const list=ofP(p.id),un=list.filter(e=>!e.done);
+ root.innerHTML=`<header class="top"><button class="ib back" data-go="home" aria-label="Back to projects">${IC.back}</button><div class="pill"><button class="ib" id="bPrintP" aria-label="Print this project">${IC.print}</button><button class="ib" id="bPMenu" aria-label="Project options">${IC.more}</button></div></header>
+ <h1 class="big" style="color:${p.color}">${esc(p.name)}</h1>
+ <p class="sum"><b>${peso(sum(un))}</b> unrecorded · ${un.length} ${un.length===1?'entry':'entries'} · <button class="lnk" id="bShow">${ui.showDone?'Hide':'Show'} recorded</button></p>
+ <nav class="colnav" id="colnav" style="--pc:${p.color}">${COLS.map(([k,n],i)=>`<button data-jump="${i}"${i?'':' class="on"'}>${n}</button>`).join('')}</nav>
+ <div class="board" id="board">${COLS.map(([k,n])=>{const es=list.filter(e=>e.col===k&&(ui.showDone||!e.done)).sort(byDate);
+  return `<section class="col"><div class="ch"><h3>${n}</h3><span>${peso(sum(es.filter(e=>!e.done)))}</span></div>${es.map(e=>card(e)).join('')}<form class="add" data-col="${k}"><span class="ring"></span><input name="t" placeholder="New entry, e.g. Cement 2500" enterkeyhint="done" autocomplete="off" aria-label="New ${n} entry"></form></section>`}).join('')}</div>
+ <button class="fab" id="fab" style="background:${p.color}" aria-label="New entry">${IC.plus}</button>`;
+ const b=$('#board');b.addEventListener('scroll',()=>{const i=visCol();document.querySelectorAll('#colnav button').forEach((x,j)=>x.classList.toggle('on',i===j))},{passive:true})}
+function visCol(){const b=$('#board');if(!b||!b.children[0])return 0;return Math.min(COLS.length-1,Math.round(b.scrollLeft/(b.children[0].offsetWidth+14)))}
+function route(){const h=decodeURIComponent(location.hash.slice(1));
+ if(h.startsWith('p-')&&proj(h.slice(2)))renderProject(proj(h.slice(2)));else if(h.startsWith('s-'))renderSmart(h.slice(2));else renderHome()}
+function go(h){if(location.hash==='#'+h)route();else location.hash=h;scrollTo(0,0)}
+function rerender(){const b=$('#board'),sl=b?b.scrollLeft:0,sy=scrollY;route();const nb=$('#board');if(nb)nb.scrollLeft=sl;scrollTo(0,sy)}
+addEventListener('hashchange',route);
+
+/* ---------- sheets ---------- */
+function sheet(html){closeSheet(true);const o=document.createElement('div');o.className='ov';o.id='ov';o.innerHTML=`<div class="sheet" role="dialog" aria-modal="true">${html}</div>`;document.body.appendChild(o);sheetOpen=true;
+ o.addEventListener('click',e=>{if(e.target===o||e.target.closest('[data-x]'))closeSheet()});return o}
+function closeSheet(quiet){const o=$('#ov');if(o)o.remove();sheetOpen=false;if(!quiet)schedule()}
+addEventListener('keydown',e=>{if(e.key==='Escape'&&sheetOpen)closeSheet()});
+function toast(msg,undo){const t=$('#toast');t.innerHTML=`<span>${esc(msg)}</span>${undo?'<button class="lnk" id="undo">Undo</button>':''}`;t.style.display='flex';clearTimeout(t._t);t._t=setTimeout(()=>t.style.display='none',4500);
+ if(undo)$('#undo').onclick=()=>{undo();t.style.display='none'}}
+const opts=(arr,sel)=>arr.map(([v,n])=>`<option value="${esc(v)}"${v===sel?' selected':''}>${esc(n)}</option>`).join('');
+function shrink(file,max,q){return new Promise(res=>{const u=URL.createObjectURL(file),im=new Image();
+ im.onload=()=>{const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);
+  c.getContext('2d').drawImage(im,0,0,c.width,c.height);URL.revokeObjectURL(u);c.toBlob(b=>res(b),'image/jpeg',q)};
+ im.onerror=()=>{URL.revokeObjectURL(u);res(null)};im.src=u})}
+const blobToData=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result);f.onerror=()=>r(null);f.readAsDataURL(b)});
+function viewImg(src){const v=document.createElement('div');v.className='viewer';v.innerHTML=`<img src="${esc(src)}" alt="Receipt">`;v.onclick=()=>v.remove();document.body.appendChild(v)}
+function openEntry(id,preset){
+ const isNew=!id,e=isNew?{id:uid(),pid:preset.pid,col:preset.col,desc:'',amt:'',date:today(),time:nowHM(),notes:'',done:false,img:null}:S.entries.find(x=>x.id===id);if(!e)return;
+ let img=e.img||null,uploading=false;
+ sheet(`<div class="sh-h"><button class="lnk" data-x>Cancel</button><b>${isNew?'New Entry':'Details'}</b><button class="lnk strong" id="sv">${isNew?'Add':'Done'}</button></div>
+ <div class="form"><div class="grp"><input id="fDesc" placeholder="Description" value="${esc(e.desc)}"><input id="fAmt" inputmode="decimal" placeholder="Amount (₱)" value="${e.amt===''?'':esc(e.amt)}"><textarea id="fNotes" placeholder="Notes: OR no., supplier, who paid">${esc(e.notes)}</textarea></div>
+ <div class="grp"><label class="fl"><span>Date</span><input type="date" id="fDate" value="${esc(e.date)}"></label><label class="fl"><span>Time</span><input type="time" id="fTime" value="${esc(e.time||'')}"></label><label class="fl"><span>Paid via</span><select id="fCol">${opts(COLS,e.col)}</select></label><label class="fl"><span>Project</span><select id="fPid">${opts(S.projects.map(p=>[p.id,p.name]),e.pid)}</select></label><label class="fl"><span>Recorded</span><input type="checkbox" class="sw" id="fDone"${e.done?' checked':''}></label></div>
+ <div class="grp rcpt" id="rc"></div>
+ ${isNew?'':'<button class="btn danger" id="del">Delete Entry</button>'}</div>`);
+ const rc=$('#rc'),file='<input type="file" accept="image/*" hidden id="rcF">';
+ const drawRc=st=>{rc.innerHTML=uploading?`<span class="rcst">${IC.cam} Saving receipt…</span>`:img?`<button class="thumb" id="rcView" aria-label="View receipt"><img data-ph="${esc(img)}" alt="Receipt"></button><div class="rcb"><b>Receipt</b><label class="lnk">Replace photo${file}</label><button class="lnk danger" id="rcDel">Remove</button>${st?`<span class="rcst">${esc(st)}</span>`:''}</div>`
+  :`<label class="rcadd">${IC.cam}<span>Add receipt photo</span>${file}</label>${st?`<span class="rcst">${esc(st)}</span>`:''}`;
+  hydrate(rc);const v=$('#rcView');if(v)v.onclick=async()=>viewImg(await photoUrl(img));const d=$('#rcDel');if(d)d.onclick=()=>{img=null;drawRc()};
+  const f=$('#rcF');if(f)f.onchange=()=>pick(f.files[0])};
+ async function pick(f){if(!f)return;uploading=true;drawRc();let msg='';
+  try{let b=await shrink(f,1800,.82);if(!b){if(!/^image\/(png|jpeg|gif|webp)$/.test(f.type))throw{code:'unsupported_type'};b=f}
+   const nid=uid()+uid();await idbPut('photos',nid,b);img=nid}
+  catch(x){const c=x&&x.code;msg=c==='unsupported_type'?'This photo format is not supported. Try a screenshot of it.':x&&x.name==='QuotaExceededError'?'Phone storage is full for this app. Remove old receipts first.':'Could not save the photo. Try again.'}
+  uploading=false;drawRc(msg)}
+ drawRc();
+ if(isNew)setTimeout(()=>$('#fDesc').focus(),50);
+ $('#sv').onclick=()=>{if(uploading)return;const d=$('#fDesc').value.trim(),a=parseAmt($('#fAmt').value);if(!d&&!a&&!img){$('#fDesc').focus();return}
+  const old=e.img,done=$('#fDone').checked;Object.assign(e,{desc:d,amt:a,date:$('#fDate').value||today(),time:$('#fTime').value,notes:$('#fNotes').value.trim(),col:$('#fCol').value,pid:$('#fPid').value,done,doneAt:done?(e.doneAt||today()):null,img});
+  if(isNew)S.entries.push(e);save();closeSheet();rerender();
+  if(old&&old!==img&&!String(old).startsWith('data:')){idbDel('photos',old).catch(()=>{});if(urls[old]){URL.revokeObjectURL(urls[old]);delete urls[old]}}};
+ const del=$('#del');if(del)del.onclick=()=>{const i=S.entries.indexOf(e);S.entries.splice(i,1);save();closeSheet();rerender();toast('Entry deleted',()=>{S.entries.splice(i,0,e);save();rerender()})}}
+function openProject(p){const isNew=!p;let color=p?p.color:PAL[S.projects.length%PAL.length],armed=false;const n=p?ofP(p.id).length:0;
+ sheet(`<div class="sh-h"><button class="lnk" data-x>Cancel</button><b>${isNew?'New Project':'Project Info'}</b><button class="lnk strong" id="sv">${isNew?'Add':'Done'}</button></div>
+ <div class="form"><div class="grp pname"><span class="dot" id="pv" style="background:${color}">${IC.list}</span><input id="fName" placeholder="Project name" value="${esc(p?p.name:'')}" style="color:${color}"></div>
+ <div class="grp swatches">${PAL.map(c=>`<button class="swc${c===color?' on':''}" data-c="${c}" style="background:${c}" aria-label="Colour ${c}"></button>`).join('')}</div>
+ ${isNew?'':`<div class="grp"><label class="fl"><span>Show recorded entries</span><input type="checkbox" class="sw" id="fShow"${ui.showDone?' checked':''}></label></div><button class="btn danger" id="delP">Delete Project</button>`}</div>`);
+ if(isNew)setTimeout(()=>$('#fName').focus(),50);
+ document.querySelectorAll('.swc').forEach(b=>b.onclick=()=>{color=b.dataset.c;document.querySelectorAll('.swc').forEach(x=>x.classList.toggle('on',x===b));$('#pv').style.background=color;$('#fName').style.color=color});
+ $('#sv').onclick=()=>{const nm=$('#fName').value.trim();if(!nm){$('#fName').focus();return}
+  if(isNew){const np={id:uid(),name:nm,color};S.projects.push(np);save();closeSheet();go('p-'+np.id)}
+  else{p.name=nm;p.color=color;const sh=$('#fShow');if(sh&&sh.checked!==ui.showDone){ui.showDone=sh.checked;saveUi()}save();closeSheet();rerender()}};
+ const d=$('#delP');if(d)d.onclick=()=>{if(!armed){armed=true;d.textContent=n?`Tap again to delete this project and its ${n} ${n===1?'entry':'entries'}`:'Tap again to delete';return}
+  const pi=S.projects.indexOf(p),gone=ofP(p.id);S.projects.splice(pi,1);S.entries=S.entries.filter(e=>e.pid!==p.id);save();closeSheet();go('home');
+  toast(`Deleted ${p.name}`,()=>{S.projects.splice(pi,0,p);S.entries.push(...gone);save();rerender()})}}
+function openMenu(){
+ sheet(`<div class="sh-h"><span></span><b>Options</b><button class="lnk strong" data-x>Done</button></div><div class="form">
+ <div class="grp"><label class="fl"><span>Show recorded entries in projects</span><input type="checkbox" class="sw" id="fShow"${ui.showDone?' checked':''}></label></div>
+ <button class="btn" id="bk">Make backup (entries + photos)</button><button class="btn primary" id="bkGo" hidden>Save backup file</button><label class="btn" style="display:grid;place-items:center">Restore from backup<input type="file" id="rs" accept=".json,application/json" hidden></label><p class="hint" id="mm"></p></div>`);
+ $('#fShow').onchange=e=>{ui.showDone=e.target.checked;saveUi()};
+ let bkFile=null;
+ $('#bk').onclick=async()=>{$('#mm').textContent='Preparing backup…';try{bkFile=new File([await makeBackup()],'project-expenses-backup-'+today()+'.json',{type:'application/json'});$('#bk').hidden=true;$('#bkGo').hidden=false;$('#mm').textContent=`Ready (${(bkFile.size/1048576).toFixed(1)} MB). Tap Save backup file, then choose Save to Files.`}catch(e){$('#mm').textContent='Could not make the backup.'}};
+ $('#bkGo').onclick=()=>shareFile(bkFile).then(()=>$('#mm').textContent='Backup saved.').catch(e=>{if(!e||e.name!=='AbortError')$('#mm').textContent='Could not open the share sheet.'});
+ $('#rs').onchange=async e=>{const f=e.target.files[0];if(!f)return;$('#mm').textContent='Restoring…';
+  try{const d=JSON.parse(await f.text());if(!Array.isArray(d.projects)||!Array.isArray(d.entries))throw 0;const ph=d.photos||{};let miss=0;
+   for(const x of d.entries){if(!x.img)continue;const isData=String(x.img).startsWith('data:'),src=isData?x.img:ph[x.img];
+    if(src){const nid=isData?uid()+uid():x.img;await idbPut('photos',nid,await dataToBlob(src));x.img=nid}else{x.img=null;miss++}}
+   const old=S;S={v:1,rev:0,projects:d.projects,entries:d.entries};save();closeSheet();go('home');toast(miss?`Backup restored (${miss} photo${miss===1?'':'s'} missing)`:'Backup restored',()=>{S=old;save();rerender()})}
+  catch(x){$('#mm').textContent='That file is not a Project Expenses backup.'}}}
+async function makeBackup(){const photos={};for(const e of S.entries){if(e.img&&!String(e.img).startsWith('data:')&&!photos[e.img]){try{const b=await idbGet('photos',e.img);if(b)photos[e.img]=await blobToData(b)}catch(x){}}}
+ return JSON.stringify({app:'project-expenses',v:1,exported:new Date().toISOString(),projects:S.projects,entries:S.entries,photos})}
+function shareFile(file){if(navigator.canShare&&navigator.share&&navigator.canShare({files:[file]}))return navigator.share({files:[file],title:file.name});
+ const u=URL.createObjectURL(file),a=document.createElement('a');a.href=u;a.download=file.name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),60000);return Promise.resolve()}
+
+/* ---------- printable report ---------- */
+function collect(pid,mode){const ps=pid?S.projects.filter(p=>p.id===pid):S.projects,inc=e=>mode==='all'||!e.done;
+ const groups=ps.map(p=>({p,cols:COLS.map(([k,n])=>({k,n,es:S.entries.filter(e=>e.pid===p.id&&e.col===k&&inc(e)).sort(byDate)})).filter(c=>c.es.length)})).filter(g=>g.cols.length);
+ return {groups,all:groups.flatMap(g=>g.cols.flatMap(c=>c.es)),mode}}
+const repName=m=>m==='all'?'All Expenses':'Unrecorded Expenses';
+const split=all=>{const r=all.filter(e=>e.done);return r.length?`Recorded PHP ${num(sum(r))}  |  Unrecorded PHP ${num(sum(all.filter(e=>!e.done)))}`:''};
+const stamp=()=>new Date().toLocaleString('en-PH',{year:'numeric',month:'long',day:'numeric',hour:'numeric',minute:'2-digit'});
+async function loadImg(id){try{const u=await photoUrl(id);if(!u)return null;const im=new Image();im.src=u;await im.decode();const k=Math.min(1,1400/Math.max(im.naturalWidth,im.naturalHeight)),c=document.createElement('canvas');
+ c.width=Math.round(im.naturalWidth*k);c.height=Math.round(im.naturalHeight*k);const x=c.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);
+ return {data:c.toDataURL('image/jpeg',.8),w:c.width,h:c.height}}catch(e){return null}}
+async function receipts(all,on){const out=[];if(!on)return out;let n=0;for(const e of all){if(!e.img)continue;n++;e._r='R'+n;out.push({e,ref:e._r,im:await loadImg(e.img)})}return out}
+const dt=e=>fullDate(e.date)+(e.time?' '+ftime(e.time):'');
+const cap=x=>{const p=proj(x.e.pid);return `${x.ref}  |  ${p?p.name:''}  |  ${COLN[x.e.col]}  |  ${x.e.desc||'Untitled'}  |  PHP ${num(x.e.amt)}  |  ${dt(x.e)}`};
+function buildPdf({groups,all,mode},title,rc){
+ const doc=new window.jspdf.jsPDF({unit:'pt',format:'a4'}),W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),R={halign:'right'};
+ doc.setFont('helvetica','bold');doc.setFontSize(17);doc.text(repName(mode)+(title?' - '+title:''),40,50);
+ doc.setFont('helvetica','normal');doc.setFontSize(10);doc.setTextColor(90);doc.text(`Generated ${stamp()}   |   ${all.length} entries   |   Total PHP ${num(sum(all))}${rc.length?'   |   '+rc.length+' receipts attached':''}`,40,68);
+ const sp=mode==='all'?split(all):'';if(sp)doc.text(sp,40,81);
+ const cs={};for(let i=1;i<=7;i++)cs[i]=R;
+ doc.autoTable({startY:sp?94:82,theme:'grid',styles:{fontSize:8,cellPadding:3},headStyles:{fillColor:[40,40,40]},footStyles:{fillColor:[225,225,225],textColor:0},columnStyles:cs,
+  head:[['Project',...COLS.map(c=>c[1]),'Total']],
+  body:groups.map(g=>[g.p.name,...COLS.map(([k])=>{const c=g.cols.find(c=>c.k===k);return c?num(sum(c.es)):'-'}),num(sum(g.cols.flatMap(c=>c.es)))]),
+  foot:[['TOTAL',...COLS.map(([k])=>num(sum(all.filter(e=>e.col===k)))),num(sum(all))]]});
+ groups.forEach(g=>{let y=doc.lastAutoTable.finalY+28;if(y>H-120){doc.addPage();y=50}
+  doc.setFont('helvetica','bold');doc.setFontSize(13);doc.setTextColor(0);doc.text(g.p.name,40,y);
+  const body=[];g.cols.forEach(c=>{body.push([{content:c.n,colSpan:6,styles:{fontStyle:'bold',fillColor:[240,240,240]}}]);c.es.forEach(e=>body.push([e.done?'Yes':'',dt(e),e.desc||'Untitled',e.notes||'',e._r||(e.img?'Yes':''),num(e.amt)]));
+   body.push([{content:c.n+' subtotal',colSpan:5,styles:{halign:'right',fontStyle:'bold'}},{content:num(sum(c.es)),styles:{halign:'right',fontStyle:'bold'}}])});
+  doc.autoTable({startY:y+8,theme:'grid',styles:{fontSize:9,cellPadding:4},headStyles:{fillColor:[40,40,40]},footStyles:{fillColor:[225,225,225],textColor:0},
+   columnStyles:{0:{cellWidth:30,halign:'center'},1:{cellWidth:106},4:{cellWidth:46,halign:'center'},5:{cellWidth:80,halign:'right'}},head:[['Rec.','Date / Time','Description','Notes','Receipt','Amount (PHP)']],body,
+   foot:[[{content:g.p.name+' total',colSpan:5,styles:{halign:'right'}},{content:num(sum(g.cols.flatMap(c=>c.es))),styles:{halign:'right'}}]]})});
+ let y=doc.lastAutoTable.finalY+60;if(y>H-60){doc.addPage();y=90}
+ doc.setFontSize(9);doc.setTextColor(0);doc.setFont('helvetica','normal');['Prepared by','Checked by','Recorded by'].forEach((t,i)=>{const x=40+i*((W-80)/3);doc.line(x,y,x+150,y);doc.text(t,x,y+13)});
+ const bh=(H-110)/2;
+ rc.forEach((x,i)=>{if(i%2===0){doc.addPage();doc.setFont('helvetica','bold');doc.setFontSize(13);doc.text('Receipts',40,44)}
+  const top=60+(i%2)*bh;doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(0);doc.text(doc.splitTextToSize(cap(x),W-80)[0],40,top+10);
+  const bw=W-80,ih=bh-36;if(x.im){const k=Math.min(bw/x.im.w,ih/x.im.h),w=x.im.w*k,h=x.im.h*k;doc.addImage(x.im.data,'JPEG',40+(bw-w)/2,top+20,w,h)}
+  else{doc.setTextColor(150);doc.text('Receipt photo could not be loaded.',40,top+40)}});
+ const n=doc.getNumberOfPages();for(let i=1;i<=n;i++){doc.setPage(i);doc.setFontSize(8);doc.setTextColor(130);doc.text(`Project Expenses  |  Page ${i} of ${n}`,W-40,H-24,{align:'right'})}
+ return doc.output('arraybuffer')}
+function openPrint(pid,mode){const o={mode:mode||'unrec',scope:pid?'this':'all',inc:true};
+ sheet(`<div class="sh-h"><button class="lnk" data-x>Close</button><b>Print</b><span></span></div><div class="form" id="pf"></div>`);
+ const draw=()=>{const P=o.scope==='this'?pid:null,R=collect(P,o.mode),{groups,all}=R,title=P?proj(P).name:'',un=o.mode==='unrec',seg=(k,v,n)=>`<button data-o="${k}" data-v="${v}" class="${o[k]===v?'on':''}">${n}</button>`;
+  $('#pf').innerHTML=`<div class="seg" role="group" aria-label="Entries">${seg('mode','unrec','Unrecorded only')}${seg('mode','all','All entries')}</div>
+  ${pid?`<div class="seg" role="group" aria-label="Projects">${seg('scope','this',esc(proj(pid).name))}${seg('scope','all','All projects')}</div>`:''}
+  <p class="repsum"><b>${peso(sum(all))}</b>${all.length} ${un?'unrecorded ':''}${all.length===1?'entry':'entries'}${P?' in '+esc(title):` across ${groups.length} project${groups.length===1?'':'s'}`}${!un&&all.some(e=>e.done)?` · ${peso(sum(all.filter(e=>!e.done)))} still unrecorded`:''}</p>
+  <div class="grp" style="padding:4px 14px 12px"><div class="rep">${groups.map(g=>`<h4><i style="background:${g.p.color}"></i>${esc(g.p.name)}<span>${peso(sum(g.cols.flatMap(c=>c.es)))}</span></h4>${g.cols.map(c=>`<div class="rc"><span>${c.n}</span><span>${c.es.length}</span><span>${peso(sum(c.es))}</span></div>`).join('')}`).join('')||`<p class="empty">${un?'Nothing unrecorded. All caught up.':'No entries yet.'}</p>`}</div></div>
+  ${all.length?`<div class="grp"><label class="chkline"><span>Include receipt photos</span><input type="checkbox" class="sw" id="inc"${o.inc?' checked':''}></label></div><button class="btn primary" id="pdf">Make printable PDF</button><button class="btn primary" id="pgo" hidden>Save or print PDF</button><p class="hint" id="pm"></p>${un?`<button class="btn" id="mark" hidden>Mark these ${all.length} entries as recorded</button>`:''}`:''}`;
+  document.querySelectorAll('#pf [data-o]').forEach(b=>b.onclick=()=>{o[b.dataset.o]=b.dataset.v;draw()});
+  if(!all.length)return;
+  $('#inc').onchange=e=>o.inc=e.target.checked;
+  const msg=t=>$('#pm').textContent=t;
+  let file=null;
+  const base=repName(o.mode).replace(/ /g,'-')+(P?'-'+title.replace(/[^\w]+/g,'-'):'')+'-'+today();
+  $('#pdf').onclick=async()=>{if(!window.jspdf||!window.jspdf.jsPDF){msg('The PDF maker did not load. Close and reopen the app.');return}
+   msg('Preparing PDF…');try{all.forEach(e=>delete e._r);const rc=await receipts(all,o.inc);file=new File([buildPdf(R,title,rc)],base+'.pdf',{type:'application/pdf'})}catch(e){msg('Could not make the PDF.');return}finally{all.forEach(e=>delete e._r)}
+   $('#pdf').hidden=true;$('#pgo').hidden=false;msg('Ready. Tap Save or print PDF, then choose Print or Save to Files.')};
+  $('#pgo').onclick=()=>shareFile(file).then(()=>{msg(un?'Done. Tick the entries off below once they are in the books.':'Done.');const m=$('#mark');if(m)m.hidden=false}).catch(e=>{if(!e||e.name!=='AbortError')msg('Could not open the share sheet.')});
+  const m=$('#mark');if(m)m.onclick=()=>{const ids=all.map(e=>e.id);all.forEach(e=>{e.done=true;e.doneAt=today()});save();closeSheet();rerender();
+   toast(`${ids.length} entries marked recorded`,()=>{S.entries.forEach(e=>{if(ids.includes(e.id)){e.done=false;e.doneAt=null}});save();rerender()})}};
+ draw()}
+
+/* ---------- events ---------- */
+function quick(t){t=t.trim();const m=t.match(/(?:^|\s)(?:₱|php\s?)?(\d[\d,]*(?:\.\d{1,2})?)$/i);return m?{desc:t.slice(0,m.index).trim(),amt:parseAmt(m[1])}:{desc:t,amt:0}}
+root.addEventListener('click',ev=>{const T=ev.target;
+ const g=T.closest('[data-go]');if(g){go(g.dataset.go);return}
+ const c=T.closest('[data-chk]');if(c){const e=S.entries.find(x=>x.id===c.dataset.chk);if(!e)return;e.done=!e.done;e.doneAt=e.done?today():null;save();
+  const el=c.closest('.card');el.classList.toggle('done',e.done);if(e.done&&!(cur&&ui.showDone)&&location.hash!=='#s-all'&&location.hash!=='#s-done'&&location.hash!=='#s-today')el.style.opacity='.35';setTimeout(rerender,700);return}
+ const o=T.closest('[data-open]');if(o){openEntry(o.dataset.open);return}
+ const j=T.closest('[data-jump]');if(j){const b=$('#board');b.children[+j.dataset.jump].scrollIntoView({behavior:'smooth',inline:'start',block:'nearest'});return}
+ const b=T.closest('button[id]');if(!b)return;
+ ({bPrint:()=>openPrint(),bPrintAll:()=>openPrint(null,'all'),bMenu:openMenu,bAddP:()=>openProject(),bPrintP:()=>openPrint(cur.id),bPMenu:()=>openProject(cur),
+   bShow:()=>{ui.showDone=!ui.showDone;saveUi();rerender()},fab:()=>openEntry(null,{pid:cur.id,col:COLS[visCol()][0]})}[b.id]||(()=>{}))()});
+root.addEventListener('submit',ev=>{const f=ev.target.closest('form.add');if(!f)return;ev.preventDefault();const inp=f.querySelector('input'),t=inp.value;if(!t.trim()||!cur)return;
+ const k=f.dataset.col,{desc,amt}=quick(t);S.entries.push({id:uid(),pid:cur.id,col:k,desc,amt,date:today(),time:nowHM(),notes:'',done:false});save();rerender();
+ const ni=document.querySelector(`form.add[data-col="${k}"] input`);if(ni)ni.focus({preventScroll:true})});
+root.addEventListener('input',ev=>{if(ev.target.id==='q'){q=ev.target.value;$('#hb').innerHTML=homeBody()}});
+
+/* ---------- start ---------- */
+(async()=>{await load();route();
+ try{const keys=await idbKeys('photos'),refs=new Set(S.entries.map(e=>e.img));for(const k of keys)if(!refs.has(k))await idbDel('photos',k)}catch(e){}
+ try{if(navigator.storage&&navigator.storage.persist)await navigator.storage.persist()}catch(e){}})();
+if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+}
+</script></body></html>
